@@ -12,6 +12,7 @@ struct AddListView: View {
     @Binding var selectedCategory: String
     @Environment(\.presentationMode) var presentationMode
     @State private var listName: String = ""
+    @State private var newCategory: String = ""
 
     var body: some View {
         ZStack {
@@ -24,13 +25,26 @@ struct AddListView: View {
                     .foregroundColor(Color("TextColor"))
                     .padding(.top, 40)
 
-                // Input Field
+                // Input Field for List Name
                 TextField("List Name", text: $listName)
                     .padding()
                     .background(Color("CardColor"))
                     .cornerRadius(10)
                     .foregroundColor(Color("TextColor"))
                     .padding(.horizontal)
+
+                // Category Selector
+                Picker("Select Category", selection: $newCategory) {
+                    ForEach(allShoppingLists.keys.sorted(), id: \.self) { category in
+                        Text(category).tag(category)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .padding()
+                .background(Color("CardColor"))
+                .cornerRadius(10)
+                .foregroundColor(Color("TextColor"))
+                .padding(.horizontal)
 
                 Spacer()
 
@@ -48,13 +62,15 @@ struct AddListView: View {
                 .padding(.bottom, 20)
             }
         }
+        .onAppear {
+            newCategory = selectedCategory // Default category selection
+        }
     }
 
     private func saveList() {
-        if !listName.isEmpty {
-            allShoppingLists[selectedCategory]?.append(listName)
+        if !listName.isEmpty && !newCategory.isEmpty {
+            allShoppingLists[newCategory, default: []].append(listName)
             presentationMode.wrappedValue.dismiss()
         }
     }
 }
-
