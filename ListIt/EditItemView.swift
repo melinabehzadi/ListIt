@@ -1,19 +1,28 @@
+//
+//  EditItemView.swift
+//  ListIt
+//
+//  Created by melina behzadi on 2025-03-08.
+//
+
 import SwiftUI
 
-struct AddItemView: View {
+struct EditItemView: View {
     @Binding var items: [(name: String, price: Double, quantity: Int)]
-    @Environment(\.presentationMode) var presentationMode
+    var itemIndex: Int
 
     @State private var itemName: String = ""
     @State private var itemPrice: String = ""
-    @State private var itemQuantity: String = "1"
+    @State private var itemQuantity: String = ""
+
+    @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
         ZStack {
             Color("BackgroundColor").edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 15) {
-                Text("Add New Item")
+                Text("Edit Item")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(Color("TextColor"))
@@ -70,7 +79,7 @@ struct AddItemView: View {
 
                 // Save Button
                 Button(action: saveItem) {
-                    Text("Add Item")
+                    Text("Save Changes")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -82,11 +91,17 @@ struct AddItemView: View {
                 .padding(.bottom, 20)
             }
         }
+        .onAppear {
+            let item = items[itemIndex]
+            itemName = item.name
+            itemPrice = String(format: "%.2f", item.price)
+            itemQuantity = "\(item.quantity)"
+        }
     }
 
     private func saveItem() {
         if let price = Double(itemPrice), let quantity = Int(itemQuantity), !itemName.isEmpty {
-            items.append((name: itemName, price: price, quantity: quantity))
+            items[itemIndex] = (name: itemName, price: price, quantity: quantity)
             presentationMode.wrappedValue.dismiss()
         }
     }

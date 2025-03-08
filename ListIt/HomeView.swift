@@ -11,6 +11,8 @@ struct HomeView: View {
     @State private var selectedCategory: String = "Groceries" // Default selection
     @State private var animateAddButton = false
     @State private var isAddingList = false
+    @State private var isAddingCategory = false
+    @State private var newCategoryName: String = ""
 
     var body: some View {
         NavigationView {
@@ -28,9 +30,25 @@ struct HomeView: View {
                         .opacity(animateAddButton ? 1 : 0)
                         .animation(.easeInOut(duration: 1.2), value: animateAddButton)
 
-                    // Category Selector
+                    // Category Selector with + Button
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
+                        HStack(spacing: 10) {
+                            // Add Category Button
+                            Button(action: {
+                                isAddingCategory = true
+                            }) {
+                                Circle()
+                                    .fill(Color("AccentColor"))
+                                    .frame(width: 35, height: 35)
+                                    .overlay(
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(radius: 3)
+                            }
+
+                            // Category List
                             ForEach(allShoppingLists.keys.sorted(), id: \.self) { category in
                                 Text(category)
                                     .foregroundColor(selectedCategory == category ? .white : Color("TextColor"))
@@ -68,7 +86,7 @@ struct HomeView: View {
                         }
                     }
                     .background(Color("BackgroundColor"))
-                    .scrollContentBackground(.hidden) // Hides default List background
+                    .scrollContentBackground(.hidden)
 
                     Spacer()
 
@@ -98,6 +116,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $isAddingList) {
                 AddListView(allShoppingLists: $allShoppingLists, selectedCategory: $selectedCategory)
+            }
+            .sheet(isPresented: $isAddingCategory) {
+                AddCategoryView(allShoppingLists: $allShoppingLists)
             }
         }
     }

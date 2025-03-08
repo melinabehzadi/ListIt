@@ -8,9 +8,23 @@ import SwiftUI
 
 struct ListDetailsView: View {
     @State var listName: String
-    @State private var items: [String] = ["Soap", "Sponges", "Disinfectant"]
+    @State private var items: [(name: String, price: Double, quantity: Int)] = [
+        ("Soap", 2.50, 2),
+        ("Sponges", 1.20, 1),
+        ("Disinfectant", 4.75, 1)
+    ]
     @State private var checkedItems: Set<String> = []
     @State private var isAddingItem = false
+    @State private var isEditingItem = false
+    @State private var selectedItemIndex: Int? = nil
+
+    var totalCost: Double {
+        items.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
+    }
+
+    var tax: Double {
+        totalCost * 0.13 // Example: 13% tax
+    }
 
     var body: some View {
         ZStack {
@@ -27,24 +41,54 @@ struct ListDetailsView: View {
                     .cornerRadius(10)
                     .padding(.horizontal)
 
-                // Items List with Swipe-to-Delete
+                // Total Cost Section
+                VStack {
+                    Text("Total Cost: $\(totalCost, specifier: "%.2f")")
+                        .font(.headline)
+                        .foregroundColor(Color("AccentColor"))
+                    Text("Tax (13%): $\(tax, specifier: "%.2f")")
+                        .foregroundColor(Color("TextColor"))
+                }
+                .padding()
+                .background(Color("CardColor"))
+                .cornerRadius(10)
+                .padding(.horizontal)
+
+                // Items List with Swipe-to-Delete, Check-Off, and Edit
                 List {
-                    ForEach(items, id: \.self) { item in
+                    ForEach(items.indices, id: \.self) { index in
+                        let item = items[index]
+
                         HStack {
-                            Text(item)
-                                .font(.headline)
-                                .foregroundColor(checkedItems.contains(item) ? .gray : Color("TextColor"))
-                                .strikethrough(checkedItems.contains(item), color: .gray)
-                                .padding()
-                                .onTapGesture {
-                                    toggleItemCheck(item: item)
-                                }
+                            VStack(alignment: .leading) {
+                                Text(item.name)
+                                    .font(.headline)
+                                    .foregroundColor(checkedItems.contains(item.name) ? .gray : Color("TextColor"))
+                                    .strikethrough(checkedItems.contains(item.name), color: .gray)
+
+                                Text("Price: $\(item.price, specifier: "%.2f") • Qty: \(item.quantity)")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color("TextColor").opacity(0.7))
+                            }
+                            .onTapGesture {
+                                toggleItemCheck(item: item.name)
+                            }
+
                             Spacer()
+
+                            // Edit Button
+                            Button(action: {
+                                selectedItemIndex = index
+                                isEditingItem = true
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(Color("AccentColor"))
+                                    .padding()
+                            }
                         }
                         .listRowBackground(Color("CardColor"))
                     }
-                    .onMove(perform: moveItem) // Enables drag-to-rearrange
-                    .onDelete(perform: deleteItem) // Swipe-to-delete
+                    .onDelete(perform: deleteItem)
                 }
                 .background(Color("BackgroundColor"))
                 .scrollContentBackground(.hidden)
@@ -74,6 +118,11 @@ struct ListDetailsView: View {
             .sheet(isPresented: $isAddingItem) {
                 AddItemView(items: $items)
             }
+            .sheet(isPresented: $isEditingItem) {
+                if let index = selectedItemIndex {
+                    EditItemView(items: $items, itemIndex: index)
+                }
+            }
         }
     }
     
@@ -91,15 +140,10 @@ struct ListDetailsView: View {
 
     // Move checked items to bottom
     private func moveToBottom(item: String) {
-        if let index = items.firstIndex(of: item) {
+        if let index = items.firstIndex(where: { $0.name == item }) {
             let removedItem = items.remove(at: index)
             items.append(removedItem)
         }
-    }
-
-    // Move items manually
-    private func moveItem(from source: IndexSet, to destination: Int) {
-        items.move(fromOffsets: source, toOffset: destination)
     }
 
     // Swipe-to-delete
