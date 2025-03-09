@@ -1,7 +1,16 @@
+//
+//  AddItemView.swift
+//  ListIt
+//
+//  Created by melina behzadi on 2025-03-08.
+//
+
 import SwiftUI
 
 struct AddItemView: View {
-    @Binding var items: [(name: String, price: Double, quantity: Int)]
+    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+    var category: String
+    var listName: String
     @Environment(\.presentationMode) var presentationMode
 
     @State private var itemName: String = ""
@@ -86,7 +95,8 @@ struct AddItemView: View {
 
     private func saveItem() {
         if let price = Double(itemPrice), let quantity = Int(itemQuantity), !itemName.isEmpty {
-            items.append((name: itemName, price: price, quantity: quantity))
+            let newItem = ShoppingListItem(name: itemName, price: price, quantity: quantity)
+            dataManager.addItem(to: category, listName: listName, item: newItem) // Save item using DataManager
             presentationMode.wrappedValue.dismiss()
         }
     }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AddCategoryView: View {
-    @Binding var allShoppingLists: [String: [String]]
+    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
     @Environment(\.presentationMode) var presentationMode
     @State private var categoryName: String = ""
 
@@ -24,12 +24,19 @@ struct AddCategoryView: View {
                     .padding(.top, 40)
 
                 // Input Field for Category Name
-                TextField("Category Name", text: $categoryName)
-                    .padding()
-                    .background(Color("CardColor"))
-                    .cornerRadius(10)
-                    .foregroundColor(Color("TextColor"))
-                    .padding(.horizontal)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Category Name:")
+                        .font(.headline)
+                        .foregroundColor(Color("TextColor"))
+                        .padding(.leading)
+
+                    TextField("Enter category name", text: $categoryName)
+                        .padding()
+                        .background(Color("CardColor"))
+                        .cornerRadius(10)
+                        .foregroundColor(Color("TextColor"))
+                        .padding(.horizontal)
+                }
 
                 Spacer()
 
@@ -51,9 +58,8 @@ struct AddCategoryView: View {
 
     private func saveCategory() {
         if !categoryName.isEmpty {
-            allShoppingLists[categoryName] = [] // Initialize empty list
+            dataManager.addCategory(categoryName) // Save category using DataManager
             presentationMode.wrappedValue.dismiss()
         }
     }
 }
-

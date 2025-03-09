@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct EditItemView: View {
-    @Binding var items: [(name: String, price: Double, quantity: Int)]
+    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+    var category: String
+    var listName: String
     var itemIndex: Int
 
     @State private var itemName: String = ""
@@ -92,7 +94,14 @@ struct EditItemView: View {
             }
         }
         .onAppear {
-            let item = items[itemIndex]
+            loadItemDetails()
+        }
+    }
+
+    private func loadItemDetails() {
+        if let listIndex = dataManager.allShoppingLists[category]?.firstIndex(where: { $0.name == listName }),
+           itemIndex < dataManager.allShoppingLists[category]![listIndex].items.count {
+            let item = dataManager.allShoppingLists[category]![listIndex].items[itemIndex]
             itemName = item.name
             itemPrice = String(format: "%.2f", item.price)
             itemQuantity = "\(item.quantity)"
@@ -101,7 +110,8 @@ struct EditItemView: View {
 
     private func saveItem() {
         if let price = Double(itemPrice), let quantity = Int(itemQuantity), !itemName.isEmpty {
-            items[itemIndex] = (name: itemName, price: price, quantity: quantity)
+            let updatedItem = ShoppingListItem(name: itemName, price: price, quantity: quantity)
+            dataManager.editItem(in: category, listName: listName, itemIndex: itemIndex, newItem: updatedItem)
             presentationMode.wrappedValue.dismiss()
         }
     }

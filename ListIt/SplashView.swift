@@ -9,7 +9,8 @@ import SwiftUI
 
 struct SplashView: View {
     @State private var isActive = false
-    
+    @StateObject private var dataManager = DataManager() // Initialize DataManager
+
     var body: some View {
         ZStack {
             // Background Color
@@ -39,7 +40,7 @@ struct SplashView: View {
         }
         .onAppear {
             isActive = true
-            // Navigate to Home after 2 seconds
+            // Load stored data before transitioning
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation {
                     isActive = false
@@ -55,10 +56,9 @@ struct SplashView: View {
             return
         }
         
-        window.rootViewController = UIHostingController(rootView: HomeView())
+        window.rootViewController = UIHostingController(rootView: HomeView(dataManager: dataManager)) // Pass dataManager
         window.makeKeyAndVisible()
     }
-
 }
 
 struct SplashView_Previews: PreviewProvider {

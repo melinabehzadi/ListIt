@@ -1,18 +1,20 @@
+//
+//  HomeView.swift
+//  ListIt
+//
+//  Created by melina behzadi on 2025-03-08.
+//
+
 import SwiftUI
 
 struct HomeView: View {
-    @State private var allShoppingLists: [String: [String]] = [
-        "Groceries": ["Weekly Grocery List", "Vegan Essentials"],
-        "Tech": ["Work Tech Accessories", "Gaming Setup"],
-        "Clothes": ["Summer Wardrobe", "Winter Essentials"],
-        "Cleaning Supplies": ["Bathroom Cleaning Supplies", "Kitchen Cleaning Kit"]
-    ]
-    
-    @State private var selectedCategory: String = "Groceries" // Default selection
+    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+
+    @State private var selectedCategory: String = "" // Default selection
     @State private var animateAddButton = false
     @State private var isAddingList = false
     @State private var isAddingCategory = false
-    @State private var newCategoryName: String = ""
+    @State private var isShowingAbout = false // State to show AboutView
 
     var body: some View {
         NavigationView {
@@ -49,7 +51,7 @@ struct HomeView: View {
                             }
 
                             // Category List
-                            ForEach(allShoppingLists.keys.sorted(), id: \.self) { category in
+                            ForEach(dataManager.allShoppingLists.keys.sorted(), id: \.self) { category in
                                 Text(category)
                                     .foregroundColor(selectedCategory == category ? .white : Color("TextColor"))
                                     .padding(.vertical, 10)
@@ -70,10 +72,10 @@ struct HomeView: View {
 
                     // List of Shopping Lists with Swipe-to-Delete
                     List {
-                        if let filteredLists = allShoppingLists[selectedCategory] {
-                            ForEach(filteredLists, id: \.self) { list in
-                                NavigationLink(destination: ListDetailsView(listName: list)) {
-                                    Text(list)
+                        if let lists = dataManager.allShoppingLists[selectedCategory] {
+                            ForEach(lists) { list in
+                                NavigationLink(destination: ListDetailsView(dataManager: dataManager, category: selectedCategory, list: list)) {
+                                    Text(list.name)
                                         .font(.headline)
                                         .foregroundColor(Color("TextColor"))
                                         .padding()
@@ -90,9 +92,26 @@ struct HomeView: View {
 
                     Spacer()
 
-                    // Floating Add List Button
+                    // Floating Buttons (Add List & About)
                     HStack {
+                        Button(action: {
+                            isShowingAbout = true
+                        }) {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    Image(systemName: "questionmark")
+                                        .font(.system(size: 26, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+                                .shadow(radius: 6)
+                        }
+                        .padding(.leading, 20)
+                        .padding(.bottom, 20)
+
                         Spacer()
+
                         Button(action: {
                             isAddingList = true
                         }) {
@@ -113,18 +132,35 @@ struct HomeView: View {
             }
             .onAppear {
                 animateAddButton = true
+                loadDefaultCategory()
             }
             .sheet(isPresented: $isAddingList) {
-                AddListView(allShoppingLists: $allShoppingLists, selectedCategory: $selectedCategory)
+                AddListView(dataManager: dataManager, selectedCategory: $selectedCategory)
             }
             .sheet(isPresented: $isAddingCategory) {
-                AddCategoryView(allShoppingLists: $allShoppingLists)
+                AddCategoryView(dataManager: dataManager)
+            }
+            .sheet(isPresented: $isShowingAbout) {
+                AboutView() // Shows the About View
             }
         }
     }
-    
+
+    // Load a default category if available
+    private func loadDefaultCategory() {
+        if selectedCategory.isEmpty, let firstCategory = dataManager.allShoppingLists.keys.sorted().first {
+            selectedCategory = firstCategory
+        }
+    }
+
     // Swipe-to-Delete List
     private func deleteList(at indexSet: IndexSet) {
-        allShoppingLists[selectedCategory]?.remove(atOffsets: indexSet)
+        if let lists = dataManager.allShoppingLists[selectedCategory] {
+            let indices = Array(indexSet)
+            for index in indices {
+                dataManager.allShoppingLists[selectedCategory]?.remove(at: index)
+            }
+            dataManager.saveLists()
+        }
     }
 }

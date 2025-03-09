@@ -2,28 +2,41 @@
 //  ListDetailsView.swift
 //  ListIt
 //
-//  Created by melina behzadi on 2025-02-25.
+//  Created by melina behzadi on 2025-03-08.
 //
+
 import SwiftUI
 
 struct ListDetailsView: View {
-    @State var listName: String
-    @State private var items: [(name: String, price: Double, quantity: Int)] = [
-        ("Soap", 2.50, 2),
-        ("Sponges", 1.20, 1),
-        ("Disinfectant", 4.75, 1)
-    ]
-    @State private var checkedItems: Set<String> = []
+    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+    var category: String
+    var list: ShoppingList
+
+    @State private var listName: String
+    @State private var checkedItems: Set<UUID> = []
     @State private var isAddingItem = false
     @State private var isEditingItem = false
     @State private var selectedItemIndex: Int? = nil
+    @State private var sortedItems: [ShoppingListItem] = []
 
     var totalCost: Double {
-        items.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
+        list.items.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
     }
 
     var tax: Double {
         totalCost * 0.13 // Example: 13% tax
+    }
+    
+    var totalCostAfterTax: Double {
+        totalCost + tax
+    }
+
+    init(dataManager: DataManager, category: String, list: ShoppingList) {
+        self.dataManager = dataManager
+        self.category = category
+        self.list = list
+        _listName = State(initialValue: list.name)
+        _sortedItems = State(initialValue: list.items)
     }
 
     var body: some View {
@@ -32,7 +45,7 @@ struct ListDetailsView: View {
 
             VStack {
                 // Editable List Name
-                TextField("Enter List Name", text: $listName)
+                TextField("Enter List Name", text: $listName, onCommit: updateListName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(Color("TextColor"))
@@ -48,6 +61,9 @@ struct ListDetailsView: View {
                         .foregroundColor(Color("AccentColor"))
                     Text("Tax (13%): $\(tax, specifier: "%.2f")")
                         .foregroundColor(Color("TextColor"))
+                    Text("Total After Tax: $\(totalCostAfterTax, specifier: "%.2f")")
+                        .font(.headline)
+                        .foregroundColor(Color("AccentColor"))
                 }
                 .padding()
                 .background(Color("CardColor"))
@@ -56,30 +72,30 @@ struct ListDetailsView: View {
 
                 // Items List with Swipe-to-Delete, Check-Off, and Edit
                 List {
-                    ForEach(items.indices, id: \.self) { index in
-                        let item = items[index]
-
+                    ForEach(sortedItems, id: \.id) { item in
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(item.name)
                                     .font(.headline)
-                                    .foregroundColor(checkedItems.contains(item.name) ? .gray : Color("TextColor"))
-                                    .strikethrough(checkedItems.contains(item.name), color: .gray)
+                                    .foregroundColor(checkedItems.contains(item.id) ? .gray : Color("TextColor"))
+                                    .strikethrough(checkedItems.contains(item.id), color: .gray)
 
                                 Text("Price: $\(item.price, specifier: "%.2f") • Qty: \(item.quantity)")
                                     .font(.subheadline)
                                     .foregroundColor(Color("TextColor").opacity(0.7))
                             }
                             .onTapGesture {
-                                toggleItemCheck(item: item.name)
+                                toggleItemCheck(item: item)
                             }
 
                             Spacer()
 
                             // Edit Button
                             Button(action: {
-                                selectedItemIndex = index
-                                isEditingItem = true
+                                if let index = sortedItems.firstIndex(where: { $0.id == item.id }) {
+                                    selectedItemIndex = index
+                                    isEditingItem = true
+                                }
                             }) {
                                 Image(systemName: "pencil")
                                     .foregroundColor(Color("AccentColor"))
@@ -116,38 +132,56 @@ struct ListDetailsView: View {
                 }
             }
             .sheet(isPresented: $isAddingItem) {
-                AddItemView(items: $items)
+                AddItemView(dataManager: dataManager, category: category, listName: list.name)
             }
             .sheet(isPresented: $isEditingItem) {
                 if let index = selectedItemIndex {
-                    EditItemView(items: $items, itemIndex: index)
+                    EditItemView(dataManager: dataManager, category: category, listName: list.name, itemIndex: index)
                 }
             }
-        }
-    }
-    
-    // Toggle check-off (strikethrough effect)
-    private func toggleItemCheck(item: String) {
-        withAnimation {
-            if checkedItems.contains(item) {
-                checkedItems.remove(item)
-            } else {
-                checkedItems.insert(item)
-                moveToBottom(item: item)
+            .onAppear {
+                sortItems()
             }
         }
     }
 
-    // Move checked items to bottom
-    private func moveToBottom(item: String) {
-        if let index = items.firstIndex(where: { $0.name == item }) {
-            let removedItem = items.remove(at: index)
-            items.append(removedItem)
+    // Update list name when changed
+    private func updateListName() {
+        if !listName.isEmpty {
+            if let listIndex = dataManager.allShoppingLists[category]?.firstIndex(where: { $0.id == list.id }) {
+                dataManager.allShoppingLists[category]?[listIndex].name = listName
+                dataManager.saveLists()
+            }
+        }
+    }
+
+    // Toggle check-off (strikethrough effect) and move checked items to the end
+    private func toggleItemCheck(item: ShoppingListItem) {
+        withAnimation {
+            if checkedItems.contains(item.id) {
+                checkedItems.remove(item.id)
+            } else {
+                checkedItems.insert(item.id)
+            }
+            sortItems()
+        }
+    }
+
+    // Sort items: unchecked first, checked last
+    private func sortItems() {
+        sortedItems = list.items.sorted { (item1, item2) in
+            let isChecked1 = checkedItems.contains(item1.id)
+            let isChecked2 = checkedItems.contains(item2.id)
+            return isChecked1 == isChecked2 ? false : !isChecked1
         }
     }
 
     // Swipe-to-delete
     private func deleteItem(at offsets: IndexSet) {
-        items.remove(atOffsets: offsets)
+        if let listIndex = dataManager.allShoppingLists[category]?.firstIndex(where: { $0.id == list.id }) {
+            dataManager.allShoppingLists[category]?[listIndex].items.remove(atOffsets: offsets)
+            dataManager.saveLists()
+            sortItems()
+        }
     }
 }
