@@ -8,22 +8,25 @@
 import SwiftUI
 
 struct AddCategoryView: View {
-    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+    @ObservedObject var dataManager: DataManager
     @Environment(\.presentationMode) var presentationMode
+
+    var editingCategoryName: String?
+
     @State private var categoryName: String = ""
+    @State private var showDuplicateAlert: Bool = false // 👈 Alert trigger
 
     var body: some View {
         ZStack {
             Color("BackgroundColor").edgesIgnoringSafeArea(.all)
 
             VStack {
-                Text("Create New Category")
+                Text(editingCategoryName == nil ? "Create New Category" : "Edit Category")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(Color("TextColor"))
                     .padding(.top, 40)
 
-                // Input Field for Category Name
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Category Name:")
                         .font(.headline)
@@ -40,9 +43,8 @@ struct AddCategoryView: View {
 
                 Spacer()
 
-                // Save Button
                 Button(action: saveCategory) {
-                    Text("Add Category")
+                    Text(editingCategoryName == nil ? "Add Category" : "Update Category")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -54,12 +56,36 @@ struct AddCategoryView: View {
                 .padding(.bottom, 20)
             }
         }
+        .onAppear {
+            if let editingCategoryName = editingCategoryName {
+                categoryName = editingCategoryName
+            }
+        }
+        .alert(isPresented: $showDuplicateAlert) {
+            Alert(
+                title: Text("Duplicate Category"),
+                message: Text("A category with this name already exists."),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
 
     private func saveCategory() {
-        if !categoryName.isEmpty {
-            dataManager.addCategory(categoryName) // Save category using DataManager
-            presentationMode.wrappedValue.dismiss()
+        guard !categoryName.isEmpty else { return }
+
+        // 👇 Prevent renaming to a duplicate name (unless it's the same one)
+        if dataManager.allShoppingLists.keys.contains(categoryName),
+           categoryName != editingCategoryName {
+            showDuplicateAlert = true
+            return
         }
+
+        if let oldName = editingCategoryName {
+            dataManager.renameCategory(oldName: oldName, newName: categoryName)
+        } else {
+            dataManager.addCategory(categoryName)
+        }
+
+        presentationMode.wrappedValue.dismiss()
     }
 }
