@@ -57,7 +57,8 @@ ListIt is a simple and elegant SwiftUI application to help users organize shoppi
 
 ## 📜 License
 
-Beetle Labs Inc. & GreenConcept LLC.
+🪲 Beetle Labs Inc.
+🧩 GreenConcept LLC.
 
 ---
 
