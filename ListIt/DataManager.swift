@@ -7,12 +7,14 @@
 
 import Foundation
 
-struct ShoppingListItem: Codable, Identifiable {
+struct ShoppingListItem: Codable, Identifiable, Equatable {
     var id = UUID()
     var name: String
     var price: Double
     var quantity: Int
 }
+
+
 
 struct ShoppingList: Codable, Identifiable {
     var id = UUID()
@@ -51,6 +53,22 @@ class DataManager: ObservableObject {
             saveLists()
         }
     }
+    
+    // Rename a category
+    func renameCategory(oldName: String, newName: String) {
+        if allShoppingLists[oldName] != nil {
+            allShoppingLists[newName] = allShoppingLists[oldName]
+            allShoppingLists.removeValue(forKey: oldName)
+            saveLists()
+        }
+    }
+
+    // Delete a category
+    func deleteCategory(_ category: String) {
+        allShoppingLists.removeValue(forKey: category)
+        saveLists()
+    }
+
 
     // Add new list to category
     func addList(to category: String, listName: String) {

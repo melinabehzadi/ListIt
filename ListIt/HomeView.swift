@@ -8,13 +8,16 @@
 import SwiftUI
 
 struct HomeView: View {
-    @ObservedObject var dataManager: DataManager // Use DataManager for persistence
+    @ObservedObject var dataManager: DataManager // DataManager for persistence
 
     @State private var selectedCategory: String = "" // Default selection
     @State private var animateAddButton = false
     @State private var isAddingList = false
-    @State private var isAddingCategory = false
+    @State private var isAddingCategory = false // For add/edit sheet
     @State private var isShowingAbout = false // State to show AboutView
+
+    // NEW: This will hold the name if we're editing
+    @State private var categoryToEdit: String? = nil
 
     var body: some View {
         NavigationView {
@@ -37,6 +40,7 @@ struct HomeView: View {
                         HStack(spacing: 10) {
                             // Add Category Button
                             Button(action: {
+                                categoryToEdit = nil // <-- We're creating, not editing
                                 isAddingCategory = true
                             }) {
                                 Circle()
@@ -50,7 +54,7 @@ struct HomeView: View {
                                     .shadow(radius: 3)
                             }
 
-                            // Category List
+                            // Category List with Long Press Context Menu
                             ForEach(dataManager.allShoppingLists.keys.sorted(), id: \.self) { category in
                                 Text(category)
                                     .foregroundColor(selectedCategory == category ? .white : Color("TextColor"))
@@ -64,6 +68,20 @@ struct HomeView: View {
                                             selectedCategory = category
                                         }
                                     }
+                                    .contextMenu {
+                                        Button("Edit Category") {
+                                            categoryToEdit = category // <-- Store for edit
+                                            isAddingCategory = true
+                                        }
+                                        Button("Delete Category", role: .destructive) {
+                                            withAnimation {
+                                                dataManager.deleteCategory(category)
+                                                if selectedCategory == category {
+                                                    selectedCategory = dataManager.allShoppingLists.keys.first ?? ""
+                                                }
+                                            }
+                                        }
+                                    }
                             }
                         }
                         .padding(.horizontal)
@@ -74,7 +92,7 @@ struct HomeView: View {
                     List {
                         if let lists = dataManager.allShoppingLists[selectedCategory] {
                             ForEach(lists) { list in
-                                NavigationLink(destination: ListDetailsView(dataManager: dataManager, category: selectedCategory, list: list)) {
+                                NavigationLink(destination: ListDetailsView(dataManager: dataManager, category: selectedCategory, listID: list.id)) {
                                     Text(list.name)
                                         .font(.headline)
                                         .foregroundColor(Color("TextColor"))
@@ -138,10 +156,11 @@ struct HomeView: View {
                 AddListView(dataManager: dataManager, selectedCategory: $selectedCategory)
             }
             .sheet(isPresented: $isAddingCategory) {
-                AddCategoryView(dataManager: dataManager)
+                // Pass categoryToEdit here
+                AddCategoryView(dataManager: dataManager, editingCategoryName: categoryToEdit)
             }
             .sheet(isPresented: $isShowingAbout) {
-                AboutView() // Shows the About View
+                AboutView()
             }
         }
     }
